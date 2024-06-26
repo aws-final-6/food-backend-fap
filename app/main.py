@@ -1,13 +1,16 @@
 from fastapi import FastAPI, HTTPException
 import requests
-from dotenv import load_dotenv
 import os
 import urllib.parse
 import logging
 import isodate
+# import redis
+# import json
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file if not running in Kubernetes
+if not os.getenv('KUBERNETES_SERVICE_HOST'):
+    from dotenv import load_dotenv
+    load_dotenv()
 
 api_key = os.getenv('YOUTUBE_API_KEY')
 app = FastAPI()
@@ -16,6 +19,10 @@ app = FastAPI()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Redis client setup (if needed later)
+# redis_host = os.getenv('REDIS_HOST', 'localhost')
+# redis_port = int(os.getenv('REDIS_PORT', 6379))
+# redis_client = redis.Redis(host=redis_host, port=redis_port, db=0)
 
 # 쇼츠 비디오 판단 함수
 def is_short_video(item, duration_seconds):
@@ -23,7 +30,6 @@ def is_short_video(item, duration_seconds):
     description = item['snippet']['description']
     # 제목 또는 설명란에 #shorts가 들어가고 1분 이하의 영상인지 확인
     return duration_seconds <= 60 and ('#shorts' in title.lower() or '#shorts' in description.lower())
-
 
 # 유튜브 검색 함수
 def youtube_search(query, duration, target_count=20):
@@ -63,7 +69,6 @@ def youtube_search(query, duration, target_count=20):
     # 결과를 캐시에 저장 (Redis 사용 시)
     # redis_client.setex(cache_key, 3600, json.dumps(video_details))
     return video_details
-
 
 # 비디오 세부 정보 가져오기 함수
 def get_video_details(video_ids, duration, target_count):
@@ -122,24 +127,19 @@ def get_video_details(video_ids, duration, target_count):
 
     return videos
 
-
 # ISO 8601 duration을 초 단위로 변환하는 함수
 def parse_duration(duration):
     duration_obj = isodate.parse_duration(duration)
     return int(duration_obj.total_seconds())
 
-
 @app.get("/api/video/long")
 def search_long_videos():
     return youtube_search(query="레시피", duration="long")
-
 
 @app.get("/api/video/short")
 def search_short_videos():
     return youtube_search(query="레시피", duration="short")
 
-
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=5000)
