@@ -44,7 +44,7 @@ jobs:
     - name: Update be_deployment.yaml with new image
       run: |
         cd GitOps_Repo
-        ~/yq -i '.spec.template.spec.containers[0].image = "192.168.56.200/mylittlerecipebook/mlr-dev-be-img-fap:${{ github.run_number }}"' be-fap-deployment.yaml
+        ~/yq -i '.spec.template.spec.containers[0].image = "192.168.56.200/mylittlerecipebook/mlr-dev-be-img-fap:${{ github.run_number }}"' be_fap_deployment.yaml
       
     - name: Configure git email
       run: |
@@ -65,8 +65,8 @@ jobs:
         tree
         echo "cd gitops-repo"
         git status
-        git add be-fap-deployment.yaml
-        echo "git add be-fap-deployment.yaml"
+        git add be_fap_deployment.yaml
+        echo "git add be_fap_deployment.yaml"
         git commit -m "Update image to 192.168.56.200/mylittlerecipebook/mlr-dev-be-img-fap:${{ github.run_number }}"
         echo "git commit"
         git push https://x-access-token:${{ secrets.TOKEN_GITHUB }}@github.com/aws-final-6/GitOps_Repo.git
