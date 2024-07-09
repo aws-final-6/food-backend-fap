@@ -87,6 +87,7 @@ def youtube_search(query, duration, target_count=20):
 
     # 결과를 캐시에 저장 (쓰기 전용)
     try:
+        logger.info(f"Setting cache for key: {cache_key} with data: {json.dumps(video_details)}")
         get_redis_connection(write=True).setex(cache_key, 3600, json.dumps(video_details))
     except Exception as e:
         logger.error(f"Failed to set cache: {str(e)}")
