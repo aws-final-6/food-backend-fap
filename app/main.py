@@ -25,13 +25,22 @@ sentinel = redis.sentinel.Sentinel([(sentinel_host, sentinel_port)], socket_time
 redis_primary_client = sentinel.master_for(master_name, socket_timeout=0.1)
 
 # Secondary (Replica) 가져오기
-replicas = sentinel.sentinel_slaves(master_name)
+try:
+    replicas = sentinel.sentinel_slaves(master_name)
+    if not replicas:
+        raise Exception("No replicas found")
+except Exception as e:
+    logger.error(f"Failed to get replicas: {str(e)}")
+    replicas = []
 
 def get_redis_connection(write=False):
     if write:
         return redis_primary_client
     else:
-        return random.choice(replicas)
+        if replicas:
+            return random.choice(replicas)
+        else:
+            raise Exception("No replicas available")
 
 # 쇼츠 비디오 판단 함수
 def is_short_video(item, duration_seconds):
@@ -45,10 +54,13 @@ def youtube_search(query, duration, target_count=20):
     cache_key = f"youtube_search:{query}:{duration}"
 
     # 캐시에서 결과 가져오기 (읽기 전용)
-    cached_result = get_redis_connection(write=False).get(cache_key)
-    if cached_result:
-        logger.info(f"Cache hit for key: {cache_key}")
-        return json.loads(cached_result)
+    try:
+        cached_result = get_redis_connection(write=False).get(cache_key)
+        if cached_result:
+            logger.info(f"Cache hit for key: {cache_key}")
+            return json.loads(cached_result)
+    except Exception as e:
+        logger.error(f"Failed to get cache: {str(e)}")
 
     # 유튜브 검색 API 호출
     search_url = (
@@ -61,7 +73,7 @@ def youtube_search(query, duration, target_count=20):
     )
     logger.info(f"Requesting URL: {search_url}")
     search_response = requests.get(search_url)
-    if (search_response.status_code != 200):
+    if search_response.status_code != 200:
         logger.error(f"Search request failed with status code {search_response.status_code}: {search_response.text}")
         raise HTTPException(status_code=search_response.status_code,
                             detail=f"YouTube API request failed with status code {search_response.status_code}: {search_response.text}")
@@ -74,7 +86,11 @@ def youtube_search(query, duration, target_count=20):
     video_details = get_video_details(video_ids, duration, target_count)
 
     # 결과를 캐시에 저장 (쓰기 전용)
-    get_redis_connection(write=True).setex(cache_key, 3600, json.dumps(video_details))
+    try:
+        get_redis_connection(write=True).setex(cache_key, 3600, json.dumps(video_details))
+    except Exception as e:
+        logger.error(f"Failed to set cache: {str(e)}")
+
     return video_details
 
 # 비디오 세부 정보 가져오기 함수
