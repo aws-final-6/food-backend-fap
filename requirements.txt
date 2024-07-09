@@ -3,4 +3,4 @@ uvicorn
 requests
 python-dotenv
 isodate
-redis
+redis==5.0.0
