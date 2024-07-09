@@ -11,7 +11,7 @@ phases:
   pre_build:
     commands:
       - echo Cloning repository...
-      - git clone https://x-access-token:${{ secrets.TOKEN_GITHUB }}@github.com/aws-final-6/GitOps_Repo.git
+      - git clone --branch test https://x-access-token:${{ secrets.TOKEN_GITHUB }}@github.com/aws-final-6/GitOps_Repo.git
       - cd GitOps_Repo
       - echo Setting up yq...
       - wget -qO ~/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
@@ -38,7 +38,7 @@ phases:
       - echo Committing and pushing changes...
       - git add be_fap_deployment.yaml
       - git commit -m "Update image to ${{ secrets.ECR_REGISTRY }}/mylittlerecipebook/mlr-prd-be-img-fap:${CODEBUILD_BUILD_NUMBER}"
-      - git push https://x-access-token:${{ secrets.TOKEN_GITHUB }}@github.com/aws-final-6/GitOps_Repo.git
+      - git push https://x-access-token:${{ secrets.TOKEN_GITHUB }}@github.com/aws-final-6/GitOps_Repo.git test
 
 artifacts:
   files:
