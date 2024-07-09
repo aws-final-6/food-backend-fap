@@ -4,44 +4,51 @@ import os
 import urllib.parse
 import logging
 import isodate
-# import redis
-# import json
-
-# Load environment variables from .env file if not running in Kubernetes
-if not os.getenv('KUBERNETES_SERVICE_HOST'):
-    from dotenv import load_dotenv
-    load_dotenv()
+import redis
+import json
+import random
 
 api_key = os.getenv('YOUTUBE_API_KEY')
 app = FastAPI()
 
-# Setup logging
+# 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Redis client setup (if needed later)
-# redis_host = os.getenv('REDIS_HOST', 'localhost')
-# redis_port = int(os.getenv('REDIS_PORT', 6379))
-# redis_client = redis.Redis(host=redis_host, port=redis_port, db=0)
+# Sentinel 구성
+sentinel_host = os.getenv('SENTINEL_HOST')
+sentinel_port = int(os.getenv('SENTINEL_PORT'))
+master_name = os.getenv('SENTINEL_MASTER_NAME')
+sentinel = redis.sentinel.Sentinel([(sentinel_host, sentinel_port)], socket_timeout=0.1)
+
+# Primary (Master) 가져오기
+redis_primary_client = sentinel.master_for(master_name, socket_timeout=0.1)
+
+# Secondary (Slave) 가져오기
+replicas = sentinel.slaves(master_name)
+
+def get_redis_connection(write=False):
+    if write:
+        return redis_primary_client
+    else:
+        return random.choice(replicas)
 
 # 쇼츠 비디오 판단 함수
 def is_short_video(item, duration_seconds):
     title = item['snippet']['title']
     description = item['snippet']['description']
-    # 제목 또는 설명란에 #shorts가 들어가고 1분 이하의 영상인지 확인
     return duration_seconds <= 60 and ('#shorts' in title.lower() or '#shorts' in description.lower())
 
 # 유튜브 검색 함수
 def youtube_search(query, duration, target_count=20):
     encoded_query = urllib.parse.quote(query)
-    # 캐시 키 생성 (Redis 사용 시)
     cache_key = f"youtube_search:{query}:{duration}"
 
-    # 캐시에서 결과 가져오기 (Redis 사용 시)
-    # cached_result = redis_client.get(cache_key)
-    # if cached_result:
-    #     logger.info(f"Cache hit for key: {cache_key}")
-    #     return json.loads(cached_result)
+    # 캐시에서 결과 가져오기 (읽기 전용)
+    cached_result = get_redis_connection(write=False).get(cache_key)
+    if cached_result:
+        logger.info(f"Cache hit for key: {cache_key}")
+        return json.loads(cached_result)
 
     # 유튜브 검색 API 호출
     search_url = (
@@ -60,14 +67,14 @@ def youtube_search(query, duration, target_count=20):
                             detail=f"YouTube API request failed with status code {search_response.status_code}: {search_response.text}")
 
     search_data = search_response.json()
-    logger.info(f"Search response data: {search_data}")  # 전체 검색 응답 데이터를 로그에 출력
+    logger.info(f"Search response data: {search_data}")
     video_ids = [item['id']['videoId'] for item in search_data.get('items', [])]
 
     # 비디오 세부 정보 가져오기
     video_details = get_video_details(video_ids, duration, target_count)
 
-    # 결과를 캐시에 저장 (Redis 사용 시)
-    # redis_client.setex(cache_key, 3600, json.dumps(video_details))
+    # 결과를 캐시에 저장 (쓰기 전용)
+    get_redis_connection(write=True).setex(cache_key, 3600, json.dumps(video_details))
     return video_details
 
 # 비디오 세부 정보 가져오기 함수
@@ -101,7 +108,6 @@ def get_video_details(video_ids, duration, target_count):
         duration_iso = item['contentDetails']['duration']
         duration_seconds = parse_duration(duration_iso)
 
-        # 쇼츠 비디오 조건
         if duration == "short" and is_short_video(item, duration_seconds):
             videos.append({
                 'video_id': video_id,
@@ -111,7 +117,6 @@ def get_video_details(video_ids, duration, target_count):
                 'publish_time': publish_time,
                 'duration': duration_seconds
             })
-        # 일반 비디오 조건
         elif duration == "long" and duration_seconds > 60:
             videos.append({
                 'video_id': video_id,
