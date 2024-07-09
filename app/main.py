@@ -27,7 +27,7 @@ redis_primary_client = sentinel.master_for(master_name, socket_timeout=0.1)
 # Secondary (Replica) 가져오기
 try:
     replicas = sentinel.sentinel_slaves(master_name)
-    if not replicas:
+    if not replicas or isinstance(replicas, bool):
         raise Exception("No replicas found")
 except Exception as e:
     logger.error(f"Failed to get replicas: {str(e)}")
@@ -38,7 +38,7 @@ def get_redis_connection(write=False):
         return redis_primary_client
     else:
         if replicas:
-            return random.choice(replicas)
+            return redis.Redis(host=random.choice(replicas)['ip'], port=replicas[0]['port'])
         else:
             raise Exception("No replicas available")
 
