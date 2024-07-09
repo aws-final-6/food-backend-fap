@@ -25,7 +25,7 @@ sentinel = redis.sentinel.Sentinel([(sentinel_host, sentinel_port)], socket_time
 redis_primary_client = sentinel.master_for(master_name, socket_timeout=0.1)
 
 # Secondary (Replica) 가져오기
-replicas = sentinel.replicas(master_name)
+replicas = sentinel.sentinel_slaves(master_name)
 
 def get_redis_connection(write=False):
     if write:
