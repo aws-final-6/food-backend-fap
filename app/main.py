@@ -24,8 +24,8 @@ sentinel = redis.sentinel.Sentinel([(sentinel_host, sentinel_port)], socket_time
 # Primary (Master) 가져오기
 redis_primary_client = sentinel.master_for(master_name, socket_timeout=0.1)
 
-# Secondary (Slave) 가져오기
-replicas = sentinel.slaves(master_name)
+# Secondary (Replica) 가져오기
+replicas = sentinel.replicas(master_name)
 
 def get_redis_connection(write=False):
     if write:
@@ -61,7 +61,7 @@ def youtube_search(query, duration, target_count=20):
     )
     logger.info(f"Requesting URL: {search_url}")
     search_response = requests.get(search_url)
-    if search_response.status_code != 200:
+    if (search_response.status_code != 200):
         logger.error(f"Search request failed with status code {search_response.status_code}: {search_response.text}")
         raise HTTPException(status_code=search_response.status_code,
                             detail=f"YouTube API request failed with status code {search_response.status_code}: {search_response.text}")
