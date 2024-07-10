@@ -32,21 +32,18 @@ except Exception as e:
 
 # Secondary (Replica) 가져오기
 try:
-    replicas = sentinel.slaves(master_name)
-    if not replicas or isinstance(replicas, bool):
-        raise Exception("No replicas found")
-    logger.info(f"Replicas info: {replicas}")
+    redis_replica_client = sentinel.slave_for(master_name, socket_timeout=0.1)
+    logger.info("Connected to replica")
 except Exception as e:
-    logger.error(f"Failed to get replicas: {str(e)}")
-    replicas = []
+    logger.error(f"Failed to get replica: {str(e)}")
+    redis_replica_client = None
 
 def get_redis_connection(write=False):
     if write:
         return redis_primary_client
     else:
-        if replicas:
-            replica = random.choice(replicas)
-            return redis.StrictRedis(host=replica['ip'], port=replica['port'])
+        if redis_replica_client:
+            return redis_replica_client
         else:
             logger.warning("No replicas available, using primary for read")
             return redis_primary_client
