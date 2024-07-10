@@ -108,7 +108,7 @@ def get_video_details(video_ids, duration, target_count):
         f"key={api_key}"
     )
     details_response = requests.get(details_url)
-    if details_response.status_code != 200):
+    if details_response.status_code != 200:
         logger.error(f"Details request failed with status code {details_response.status_code}: {details_response.text}")
         raise HTTPException(status_code=details_response.status_code,
                             detail=f"YouTube API request failed with status code {details_response.status_code}: {details_response.text}")
