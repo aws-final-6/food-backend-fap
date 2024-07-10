@@ -5,6 +5,7 @@ import urllib.parse
 import logging
 import isodate
 import redis
+from redis.sentinel import Sentinel
 import json
 import random
 
