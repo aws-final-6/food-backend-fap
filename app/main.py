@@ -22,13 +22,20 @@ master_name = os.getenv('SENTINEL_MASTER_NAME')
 sentinel = redis.sentinel.Sentinel([(sentinel_host, sentinel_port)], socket_timeout=0.1)
 
 # Primary (Master) 가져오기
-redis_primary_client = sentinel.master_for(master_name, socket_timeout=0.1)
+try:
+    redis_primary_client = sentinel.master_for(master_name, socket_timeout=0.1)
+    master_info = sentinel.sentinel_master(master_name)
+    logger.info(f"Master info: {master_info}")
+except Exception as e:
+    logger.error(f"Failed to get master: {str(e)}")
+    redis_primary_client = None
 
 # Secondary (Replica) 가져오기 (Redis 5.0.0 호환)
 try:
     replicas = sentinel.slaves(master_name)
     if not replicas or isinstance(replicas, bool):
         raise Exception("No replicas found")
+    logger.info(f"Replicas info: {replicas}")
 except Exception as e:
     logger.error(f"Failed to get replicas: {str(e)}")
     replicas = []
@@ -121,9 +128,6 @@ def get_video_details(video_ids, duration, target_count):
     for item in details_data.get('items', []):
         video_id = item['id']
         title = item['snippet']['title']
-        description = item['snippet']['description']
-        channel_title = item['snippet']['channelTitle']
-        publish_time = item['snippet']['publishedAt']
         duration_iso = item['contentDetails']['duration']
         duration_seconds = parse_duration(duration_iso)
 
@@ -131,19 +135,11 @@ def get_video_details(video_ids, duration, target_count):
             videos.append({
                 'video_id': video_id,
                 'title': title,
-                'description': description,
-                'channel_title': channel_title,
-                'publish_time': publish_time,
-                'duration': duration_seconds
             })
         elif duration == "long" and duration_seconds > 60:
             videos.append({
                 'video_id': video_id,
                 'title': title,
-                'description': description,
-                'channel_title': channel_title,
-                'publish_time': publish_time,
-                'duration': duration_seconds
             })
 
         if len(videos) >= target_count:
