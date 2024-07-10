@@ -24,9 +24,9 @@ sentinel = redis.sentinel.Sentinel([(sentinel_host, sentinel_port)], socket_time
 # Primary (Master) 가져오기
 redis_primary_client = sentinel.master_for(master_name, socket_timeout=0.1)
 
-# Secondary (Replica) 가져오기
+# Secondary (Replica) 가져오기 (Redis 5.0.0 호환)
 try:
-    replicas = sentinel.sentinel_slaves(master_name)
+    replicas = sentinel.slaves(master_name)
     if not replicas or isinstance(replicas, bool):
         raise Exception("No replicas found")
 except Exception as e:
@@ -38,9 +38,11 @@ def get_redis_connection(write=False):
         return redis_primary_client
     else:
         if replicas:
-            return redis.Redis(host=random.choice(replicas)['ip'], port=replicas[0]['port'])
+            replica = random.choice(replicas)
+            return redis.Redis(host=replica['ip'], port=replica['port'])
         else:
-            raise Exception("No replicas available")
+            logger.warning("No replicas available, using primary for read")
+            return redis_primary_client
 
 # 쇼츠 비디오 판단 함수
 def is_short_video(item, duration_seconds):
@@ -106,7 +108,7 @@ def get_video_details(video_ids, duration, target_count):
         f"key={api_key}"
     )
     details_response = requests.get(details_url)
-    if details_response.status_code != 200:
+    if details_response.status_code != 200):
         logger.error(f"Details request failed with status code {details_response.status_code}: {details_response.text}")
         raise HTTPException(status_code=details_response.status_code,
                             detail=f"YouTube API request failed with status code {details_response.status_code}: {details_response.text}")
