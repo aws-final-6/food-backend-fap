@@ -30,9 +30,9 @@ except Exception as e:
     logger.error(f"Failed to get master: {str(e)}")
     redis_primary_client = None
 
-# Secondary (Replica) 가져오기 (Redis 5.0.0 호환)
+# Secondary (Replica) 가져오기
 try:
-    replicas = sentinel.slaves(master_name)
+    replicas = sentinel.sentinel_slaves(master_name)
     if not replicas or isinstance(replicas, bool):
         raise Exception("No replicas found")
     logger.info(f"Replicas info: {replicas}")
