@@ -19,12 +19,12 @@ logger = logging.getLogger(__name__)
 sentinel_host = os.getenv('SENTINEL_HOST')
 sentinel_port = int(os.getenv('SENTINEL_PORT'))
 master_name = os.getenv('SENTINEL_MASTER_NAME')
-sentinel = redis.sentinel.Sentinel([(sentinel_host, sentinel_port)], socket_timeout=0.1)
+sentinel = Sentinel([(sentinel_host, sentinel_port)], socket_timeout=0.1)
 
 # Primary (Master) 가져오기
 try:
     redis_primary_client = sentinel.master_for(master_name, socket_timeout=0.1)
-    master_info = sentinel.sentinel_master(master_name)
+    master_info = sentinel.discover_master(master_name)
     logger.info(f"Master info: {master_info}")
 except Exception as e:
     logger.error(f"Failed to get master: {str(e)}")
@@ -32,7 +32,7 @@ except Exception as e:
 
 # Secondary (Replica) 가져오기
 try:
-    replicas = sentinel.sentinel_slaves(master_name)
+    replicas = sentinel.slaves(master_name)
     if not replicas or isinstance(replicas, bool):
         raise Exception("No replicas found")
     logger.info(f"Replicas info: {replicas}")
@@ -46,7 +46,7 @@ def get_redis_connection(write=False):
     else:
         if replicas:
             replica = random.choice(replicas)
-            return redis.Redis(host=replica['ip'], port=replica['port'])
+            return redis.StrictRedis(host=replica['ip'], port=replica['port'])
         else:
             logger.warning("No replicas available, using primary for read")
             return redis_primary_client
