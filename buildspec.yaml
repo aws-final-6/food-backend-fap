@@ -31,6 +31,8 @@ phases:
       - echo "Docker push completed"
       - echo Updating be_fap_deployment.yaml with the new image...
       - git clone https://x-access-token:${TOKEN_GITHUB}@github.com/aws-final-6/GitOps_Repo.git
+      - ls
+      - cd GitOps_Repo
       - ~/yq -i '.spec.template.spec.containers[0].image = "${ECR_REGISTRY}/mylittlerecipebook/mlr-prd-be-img-fap:${CODEBUILD_BUILD_NUMBER}"' be_fap_deployment.yaml
       - echo Configuring git user...
       - git config --global user.email "${EMAIL_GITHUB}"
