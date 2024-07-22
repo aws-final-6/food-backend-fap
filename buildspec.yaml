@@ -15,7 +15,7 @@ phases:
 
   build:
     commands:
-      - echo Building the Docker image...
+      - echo Building the Docker image....
       - docker build -t ${ECR_REGISTRY}/mylittlerecipebook/mlr-prd-be-img-fap:${CODEBUILD_BUILD_NUMBER} -f Dockerfile .
       - echo "Docker build completed"
       - docker images
